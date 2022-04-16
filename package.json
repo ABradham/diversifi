@@ -1,0 +1,19 @@
+{
+  "name": "diversifi-backend",
+  "version": "1.0.0",
+  "description": "Backend For diversifi",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ABradham/diversifi.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ABradham/diversifi/issues"
+  },
+  "homepage": "https://github.com/ABradham/diversifi#readme"
+}
