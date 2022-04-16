@@ -2,6 +2,7 @@ import axios from 'axios';
 import 'dotenv/config';
 
 const getAuthToken = async () => {
+  let token = null;
 	const myHeaders = {
 		Authorization: `Basic ${Buffer.from(
 			`${process.env.WORKER_CLIENT_ID}:${process.env.WORKER_CLIENT_SECRET}`,
@@ -16,7 +17,7 @@ const getAuthToken = async () => {
 			(response) => {
 				if (response.status == 200) {
 					// If affirmative status
-					console.log(response.data);
+          token = response.data;
 				} else {
 					// If negative status
 					console.log(`Spotify gave invalid code ${response.status}`);
@@ -27,11 +28,13 @@ const getAuthToken = async () => {
 				console.log(error);
 			}
 		);
+    return token;
 };
 
 const getTrackIDsPerPlaylist = async () => {
 	const token = await getAuthToken();
 	console.log(token);
+  
 };
 
 getTrackIDsPerPlaylist();
