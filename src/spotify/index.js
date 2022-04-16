@@ -44,26 +44,46 @@ const refreshHeader = async () => {
   }
 };
 
-const getTrackIDsInPlaylist = async (playlistID) => {
+const getTrackIDsInPlaylistHelper = async (playlistID, offset) => {
   await refreshHeader();
-  const api_url = `https://api.spotify.com/v1/playlists/${playlistID}/tracks`;
+  const api_url = `https://api.spotify.com/v1/playlists/${playlistID}/tracks?limit=50&offset=${offset}`;
 
   try{
     const response = await axios.get(api_url, {
       headers: currentHeaders
     });
 
-    return response.data;
+    return response.data.items.map( (item) => { return item.track.id});
 
-  }catch(error){
+  } catch(error){
     console.log(error);
   }  
+};
+
+const getTrackIDsInPlaylist = async (playlistID) => {
+  let halves = await Promise.all([
+    getTrackIDsInPlaylistHelper(playlistID, 0),
+    getTrackIDsInPlaylistHelper(playlistID, 50)
+  ]);
+  return halves[0].concat(halves[1]);
 }
 
 
 const main = async () => {
-  let songIds = await getTrackIDsInPlaylist('4Gol1EeoMD24Bm4EoiVpnw');
-  console.log(songIds);
+  let country = 'Albania';
+  let playlists = [ '4Gol1EeoMD24Bm4EoiVpnw', '05tRphjiIyK7HDcZCCTgjs' ]
+
+  let trackIDsPerPlaylist = await Promise.all(playlists.map(playlist => getTrackIDsInPlaylist(playlist)));
+
+  let uniqueTrackIds = new Set();
+
+  trackIDsPerPlaylist.forEach((playlist) => {
+    playlistHalves.forEach((half) => {
+      half.forEach((trackID) => {
+        uniqueTrackIds.add(trackID)
+      })
+    })
+  }
 }
 
 main();
