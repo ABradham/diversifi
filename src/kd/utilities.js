@@ -1,5 +1,5 @@
 import KDT from 'kd-tree-javascript';
-import SongNode from './kd/song_node.js';
+import SongNode from './song_node.js';
 const { kdTree } = KDT;
 
 /**
@@ -19,7 +19,7 @@ function makeSerializedKDT(featuresArray) {
  * @param {string} serializedTree a serialized kdTree
  * @return {kdTree} a deserialized kdTree
  */
- function deserializeKDT(serializedTree) {
+function deserializeKDT(serializedTree) {
   return new kdTree(serializedTree, SongNode.distance, SongNode.dimensions)
 }
 

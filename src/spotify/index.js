@@ -1,5 +1,7 @@
 import axios from 'axios';
 import 'dotenv/config';
+import { makeSerializedKDT, /*deserializeKDT, kNearest*/ } from '../kd/utilities.js';
+// import SongNode from '../kd/song_node.js';
 
 let currentHeaders = null;
 let expiry = null;
@@ -44,26 +46,117 @@ const refreshHeader = async () => {
   }
 };
 
-const getTrackIDsInPlaylist = async (playlistID) => {
+const getTrackIDsInPlaylistHelper = async (playlistID, offset) => {
   await refreshHeader();
-  const api_url = `https://api.spotify.com/v1/playlists/${playlistID}/tracks`;
+  const api_url = `https://api.spotify.com/v1/playlists/${playlistID}/tracks?limit=50&offset=${offset}`;
 
   try{
     const response = await axios.get(api_url, {
       headers: currentHeaders
     });
 
-    return response.data;
+    return response.data.items.map( (item) => { return item.track.id});
 
-  }catch(error){
+  } catch(error){
     console.log(error);
   }  
+};
+
+const getTrackIDsInPlaylist = async (playlistID) => {
+  let halves = await Promise.all([
+    getTrackIDsInPlaylistHelper(playlistID, 0),
+    getTrackIDsInPlaylistHelper(playlistID, 50)
+  ]);
+  return halves[0].concat(halves[1]);
 }
 
+const getTracksAudioFeatures = async (trackIDs) => {
+  await refreshHeader();
+  const api_url = `https://api.spotify.com/v1/audio-features?ids=${Array.from(trackIDs).join(',')}`;
 
-const main = async () => {
-  let songIds = await getTrackIDsInPlaylist('4Gol1EeoMD24Bm4EoiVpnw');
-  console.log(songIds);
+  try{
+    const response = await axios.get(api_url, {
+      headers: currentHeaders
+    });
+    return response.data["audio_features"];
+
+  } catch(error){
+    console.log(error);
+  }  
+};
+
+
+/**
+ * converts the song ids in multiple playlists to a single set of song ids
+ * 
+ * @param {[[string]]} playlists an array of playlists. each playlist is an array of song ids
+ * @return {Set(string)} an a array of <=100 song ids
+ * 
+ */
+const get100Tracks = (playlists) => {
+  let i = 0;
+  let playlist = 0;
+  const tracks = new Set();
+
+  while (i < 100 && tracks.size < 100) {
+    if (playlist >= playlists.length) {
+      playlist = 0;
+      i++
+    }
+    if (i < playlists[playlist].length) {
+      tracks.add(playlists[playlist][i]);
+    }
+    playlist++;
+  }
+  return tracks;
 }
 
-main();
+const main = async (country, playlists) => {
+
+  const trackIDsPerPlaylist = await Promise.all(playlists.map(playlist => getTrackIDsInPlaylist(playlist)));
+  
+  const unique100Tracks = get100Tracks(trackIDsPerPlaylist);
+
+  const unique100AudioFeatures = await getTracksAudioFeatures(unique100Tracks);
+
+
+  const tree = makeSerializedKDT(unique100AudioFeatures);
+
+  /*
+  const newTree = deserializeKDT(tree);
+  const s1 = new SongNode(unique100AudioFeatures[0]);
+  const nearest = kNearest(newTree, 1, s1);
+  console.log(nearest);
+  console.log(nearest.length);
+  console.log(s1.id)
+  */
+
+}
+
+let country = 'Albania';
+let playlists = [
+  '1KL27hViLJlh0fgawAU6SL',
+  '2MpHlj7SuehxI7D56Tkg55',
+  '1XJXFjgIvkxsf34KDzeqw1',
+  '3ZOIn4bLkUCQv64EvyEscs',
+  '4m9gcsO6VjkKaqPSm2VlwJ',
+  '0o5d8n2vxJGEjHRyZUpLhy',
+  '7Et5QB2icjdOHh2rKtRp3h',
+  '7zZfOLddXSWtDmOmUg08xm',
+  '1xmFUoG0VwuBM3WLBybPoH',
+  '27yyB3NGE4d99vMtkluTnx',
+  '4TYhyZ9EfsllF9lW6eXQq6',
+  '3YOtV00X0ydUvW4eckZ7kg',
+  '7IEEr9ArWaDCoPtVyu2AJh',
+  '3B9V84LcLPCRUNXqDlyVNe',
+  '0KCtTJsqstRnDeVDbSgpu1',
+  '15HHchKiwZdSpkGqoeD4rO',
+  '5TBBxOsjahfcXSWDCElEr9',
+  '4V22ZZJOzCU1veiuOM2xZD',
+  '1s9ErsKJF6eU8cgIxLhW3m',
+  '1CAH6xyXdQVBFM8thfn6mT',
+  '4BsWM9uY7sVAlAsQf3GelF',
+  '1ZgTv19r4a8yTclkbnR10r'
+]
+
+main(country, playlists);
