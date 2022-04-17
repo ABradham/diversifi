@@ -2,6 +2,7 @@ import axios from 'axios';
 import 'dotenv/config';
 import { makeSerializedKDT /*deserializeKDT, kNearest*/ } from '../kd/utilities.js';
 // import SongNode from '../kd/song_node.js';
+import fs from 'fs';
 
 let currentHeaders = null;
 let expiry = null;
@@ -71,6 +72,13 @@ const getTrackIDsInPlaylist = async (playlistID) => {
 	return halves[0].concat(halves[1]);
 };
 
+/**
+ * converts the song ids in multiple playlists to a single set of song ids
+ * 
+ * @param {[[string]]} playlists an array of playlists. each playlist is an array of song ids
+ * @return {Set(string)} an a array of <=100 song ids
+ * 
+ */
 const getTracksAudioFeatures = async (trackIDs) => {
 	await refreshHeader();
 	const api_url = `https://api.spotify.com/v1/audio-features?ids=${Array.from(trackIDs).join(',')}`;
@@ -110,49 +118,31 @@ const get100Tracks = (playlists) => {
 	return tracks;
 };
 
-const main = async (country, playlists) => {
-	const trackIDsPerPlaylist = await Promise.all(playlists.map((playlist) => getTrackIDsInPlaylist(playlist)));
+const main = async () => {
+  let rawdata = fs.readFileSync('src/scraping/fullsScrape.json');
+  let countriesToPlaylists = JSON.parse(rawdata);
 
-	const unique100Tracks = get100Tracks(trackIDsPerPlaylist);
+  Object.entries(countriesToPlaylistIDs).forEach( ([country, playlistIDs]) => {
 
-	const unique100AudioFeatures = await getTracksAudioFeatures(unique100Tracks);
+    const trackIDsPerPlaylist = await Promise.all(playlistIDs.map((playlistID) => getTrackIDsInPlaylist(playlistID)));
 
-	const tree = makeSerializedKDT(unique100AudioFeatures);
+    const unique100Tracks = get100Tracks(trackIDsPerPlaylist);
+  
+    const unique100AudioFeatures = await getTracksAudioFeatures(unique100Tracks);
+  
+    const tree = makeSerializedKDT(unique100AudioFeatures);
 
-	/*
-  const newTree = deserializeKDT(tree);
-  const s1 = new SongNode(unique100AudioFeatures[0]);
-  const nearest = kNearest(newTree, 1, s1);
-  console.log(nearest);
-  console.log(nearest.length);
-  console.log(s1.id)
-  */
+    // push to DB country, tree
+  
+    /* TEST CODE
+    const newTree = deserializeKDT(tree);
+    const s1 = new SongNode(unique100AudioFeatures[0]);
+    const nearest = kNearest(newTree, 1, s1);
+    console.log(nearest);
+    console.log(nearest.length);
+    console.log(s1.id)
+    */
+  });
 };
 
-let country = 'Albania';
-let playlists = [
-	'1KL27hViLJlh0fgawAU6SL',
-	'2MpHlj7SuehxI7D56Tkg55',
-	'1XJXFjgIvkxsf34KDzeqw1',
-	'3ZOIn4bLkUCQv64EvyEscs',
-	'4m9gcsO6VjkKaqPSm2VlwJ',
-	'0o5d8n2vxJGEjHRyZUpLhy',
-	'7Et5QB2icjdOHh2rKtRp3h',
-	'7zZfOLddXSWtDmOmUg08xm',
-	'1xmFUoG0VwuBM3WLBybPoH',
-	'27yyB3NGE4d99vMtkluTnx',
-	'4TYhyZ9EfsllF9lW6eXQq6',
-	'3YOtV00X0ydUvW4eckZ7kg',
-	'7IEEr9ArWaDCoPtVyu2AJh',
-	'3B9V84LcLPCRUNXqDlyVNe',
-	'0KCtTJsqstRnDeVDbSgpu1',
-	'15HHchKiwZdSpkGqoeD4rO',
-	'5TBBxOsjahfcXSWDCElEr9',
-	'4V22ZZJOzCU1veiuOM2xZD',
-	'1s9ErsKJF6eU8cgIxLhW3m',
-	'1CAH6xyXdQVBFM8thfn6mT',
-	'4BsWM9uY7sVAlAsQf3GelF',
-	'1ZgTv19r4a8yTclkbnR10r'
-];
-
-main(country, playlists);
+main();
