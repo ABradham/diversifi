@@ -32,7 +32,7 @@ const main = async () => {
   let rawdata = fs.readFileSync('src/scraping/fullsScrape.json');
   let countriesToPlaylistIDs = JSON.parse(rawdata);
 
-  for (const [country, playlistIDs] of Object.entries(countriesToPlaylistIDs)) {
+  for (const [country, playlistIDs] of Object.entries(countriesToPlaylistIDs).slice(0,1)) {
     const trackIDsPerPlaylist = await Promise.all(playlistIDs.map((playlistID) => getTrackIDsInPlaylist(playlistID)));
 
     const unique100Tracks = get100Tracks(trackIDsPerPlaylist);

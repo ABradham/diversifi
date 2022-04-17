@@ -4,6 +4,10 @@ import 'dotenv/config';
 let currentHeaders = null;
 let expiry = null;
 
+/**
+ * gets Spotify auth token
+ * @return {string} auth token
+ */
 const getAuthToken = async () => {
 	let token = null;
 	const myHeaders = {
@@ -34,6 +38,9 @@ const getAuthToken = async () => {
 	return token;
 };
 
+/**
+ * refreshes the auth token if necessary. should be called before any Spotify API calls
+ */
 const refreshHeader = async () => {
 	if (!currentHeaders || expiry < Date.now() + 15 * 60 * 1000) {
 		let data = await getAuthToken();
@@ -44,6 +51,13 @@ const refreshHeader = async () => {
 	}
 };
 
+/**
+ * gets an array of track ids present in a playlist.slice(offset, offset+51)
+ * 
+ * @param {string} playlistID a playlist's id
+ * @param {number} offset
+ * @return {[string]} an array of track ids
+ */
 const getTrackIDsInPlaylistHelper = async (playlistID, offset) => {
 	await refreshHeader();
 	const api_url = `https://api.spotify.com/v1/playlists/${playlistID}/tracks?limit=50&offset=${offset}`;
@@ -61,6 +75,12 @@ const getTrackIDsInPlaylistHelper = async (playlistID, offset) => {
 	}
 };
 
+/**
+ * gets an array of track ids present in a given playlist id
+ * 
+ * @param {string} playlistID a playlist's id
+ * @return {[string]} an array of track ids
+ */
 const getTrackIDsInPlaylist = async (playlistID) => {
 	let halves = await Promise.all([
 		getTrackIDsInPlaylistHelper(playlistID, 0),
@@ -70,11 +90,10 @@ const getTrackIDsInPlaylist = async (playlistID) => {
 };
 
 /**
- * converts the song ids in multiple playlists to a single set of song ids
+ * gets an array of audio features objects for an array of track ids
  * 
- * @param {[[string]]} playlists an array of playlists. each playlist is an array of song ids
- * @return {Set(string)} an a array of <=100 song ids
- * 
+ * @param {[string]} trackIds an array of track ids
+ * @return {[Object]} an a array of audio feature objects
  */
 const getTracksAudioFeatures = async (trackIDs) => {
 	await refreshHeader();
