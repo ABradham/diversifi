@@ -75,9 +75,9 @@ const getTrackIDsInPlaylistHelper = async (playlistID, offset) => {
       let delay = error.response.headers['retry-after'] * 1000;
       console.log(`rate limit! waiting ${delay} ms`);
 
-      return await setTimeout( delay, async () => {
+      return await setTimeout( async () => {
         return await getTrackIDsInPlaylistHelper(playlistID, offset)
-      });
+      }, delay);
 
     } else {
       console.log(error);
@@ -119,9 +119,9 @@ const getTracksAudioFeatures = async (trackIDs) => {
       let delay = error.response.headers['retry-after'] * 1000;
       console.log(`rate limit! waiting ${delay} ms`);
 
-      return await setTimeout( delay, async () => {
+      return await setTimeout( async () => {
         return await getTracksAudioFeatures(trackIDs)
-      });
+      }, delay);
 
     } else {
       console.log(error);
