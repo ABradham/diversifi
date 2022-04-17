@@ -53,7 +53,7 @@ const main = async () => {
 		// Delete existing country document from database
 		try {
 			CountrySchema.findOneAndDelete({ country: country }, (error) => {
-        console.log(`----------Error finding and deleting ${country} document from mongo----------`);
+        console.log(`----------Saved ${country} to database----------`);
 			});
 		} catch (error) {
 			console.log(`----------Saved ${country} to database----------`);
