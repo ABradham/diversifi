@@ -1,6 +1,8 @@
-import { makeSerializedKDT, /*deserializeKDT, kNearest*/ } from '../kd/utilities.js';
+import { makeSerializedKDT /*deserializeKDT, kNearest*/ } from '../kd/utilities.js';
 // import SongNode from '../kd/song_node.js';
-import {getTrackIDsInPlaylist, getTracksAudioFeatures} from '../spotify/index.js'
+import { getTrackIDsInPlaylist, getTracksAudioFeatures } from '../spotify/index.js';
+import mongoose from 'mongoose';
+import CountrySchema from '../mongo/models/country.js';
 import fs from 'fs';
 
 /**
@@ -29,21 +31,48 @@ const get100Tracks = (playlists) => {
 };
 
 const main = async () => {
-  let rawdata = fs.readFileSync('src/scraping/fullsScrape.json');
-  let countriesToPlaylistIDs = JSON.parse(rawdata);
+	// Connect to mongodb
+	mongoose.connect(process.env.MONGO_URI, () => {
+		console.log('Connected to mongodb');
+	});
 
-  for (const [country, playlistIDs] of Object.entries(countriesToPlaylistIDs)) {
-    const trackIDsPerPlaylist = await Promise.all(playlistIDs.map((playlistID) => getTrackIDsInPlaylist(playlistID)));
+	let rawdata = fs.readFileSync('src/scraping/fullsScrape.json');
+	let countriesToPlaylistIDs = JSON.parse(rawdata);
 
-    const unique100Tracks = get100Tracks(trackIDsPerPlaylist);
-  
-    const unique100AudioFeatures = await getTracksAudioFeatures(unique100Tracks);
-  
-    const tree = makeSerializedKDT(unique100AudioFeatures);
+	for (const [ country, playlistIDs ] of Object.entries(countriesToPlaylistIDs).splice(3)) {
+		const trackIDsPerPlaylist = await Promise.all(
+			playlistIDs.map((playlistID) => getTrackIDsInPlaylist(playlistID))
+		);
 
-    // push to DB country, tree
-  
-    /* TEST CODE
+		const unique100Tracks = get100Tracks(trackIDsPerPlaylist);
+
+		const unique100AudioFeatures = await getTracksAudioFeatures(unique100Tracks);
+
+		const tree = makeSerializedKDT(unique100AudioFeatures);
+
+		// Delete existing country document from database
+		try {
+			CountrySchema.findOneAndDelete({ country: country }, (err) => {
+				console.log(`----------Error deleting ${country} from database----------`);
+			});
+		} catch (error) {
+			console.log(`----------Error deleting ${country} document from mongo----------`);
+		}
+
+		// Create country object from schema and save to db
+		try {
+			const newCountry = await new CountrySchema({
+				country: country,
+				tree: tree
+			});
+			console.log('Got here!');
+			await newCountry.save();
+		} catch (error) {
+			console.log(`Error saving ${country} to database!`);
+			console.log(error);
+		}
+
+		/* TEST CODE
     const newTree = deserializeKDT(tree);
     const s1 = new SongNode(unique100AudioFeatures[0]);
     const nearest = kNearest(newTree, 1, s1);
@@ -51,7 +80,7 @@ const main = async () => {
     console.log(nearest);
     console.log(s1.id)
     */
-  }
+	}
 };
 
 main();
