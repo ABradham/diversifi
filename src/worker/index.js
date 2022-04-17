@@ -39,7 +39,7 @@ const main = async () => {
 	let rawdata = fs.readFileSync('src/scraping/fullsScrape.json');
 	let countriesToPlaylistIDs = JSON.parse(rawdata);
 
-	for (const [ country, playlistIDs ] of Object.entries(countriesToPlaylistIDs).splice(110)) {
+	for (const [ country, playlistIDs ] of Object.entries(countriesToPlaylistIDs)) {
 		const trackIDsPerPlaylist = await Promise.all(
 			playlistIDs.map((playlistID) => getTrackIDsInPlaylist(playlistID))
 		);
