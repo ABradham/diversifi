@@ -71,7 +71,17 @@ const getTrackIDsInPlaylistHelper = async (playlistID, offset) => {
 			return item.track.id;
 		});
 	} catch (error) {
-		console.log(error);
+    if (error.response.status == 429) {
+      let delay = error.response.headers['retry-after'] * 1000;
+      console.log(`rate limit! waiting ${delay} ms`);
+
+      return await setTimeout( delay, async () => {
+        return await getTrackIDsInPlaylistHelper(playlistID, offset)
+      });
+
+    } else {
+      console.log(error);
+    }
 	}
 };
 
@@ -105,8 +115,42 @@ const getTracksAudioFeatures = async (trackIDs) => {
 		});
 		return response.data['audio_features'];
 	} catch (error) {
+    if (error.response.status == 429) {
+      let delay = error.response.headers['retry-after'] * 1000;
+      console.log(`rate limit! waiting ${delay} ms`);
+
+      return await setTimeout( delay, async () => {
+        return await getTracksAudioFeatures(trackIDs)
+      });
+
+    } else {
+      console.log(error);
+    }
+	}
+};
+
+/**
+ * creates a playlist using the given trackids
+ * 
+ * @param {[string]} trackIds an array of track ids
+ * @return {string} a playlistID containing the given trackIDs
+ */
+ const makePlaylist = async (trackIDs) => {
+	await refreshHeader();
+	const api_url = `https://api.spotify.com/v1/audio-features?ids=${Array.from(trackIDs).join(',')}`;
+
+	try {
+		const response = await axios.get(api_url, {
+			headers: currentHeaders
+		});
+		return response.data['audio_features'];
+	} catch (error) {
 		console.log(error);
 	}
 };
+
+
+
+
 
 export { getTrackIDsInPlaylist, getTracksAudioFeatures };
