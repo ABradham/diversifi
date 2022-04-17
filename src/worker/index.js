@@ -39,7 +39,7 @@ const main = async () => {
 	let rawdata = fs.readFileSync('src/scraping/fullsScrape.json');
 	let countriesToPlaylistIDs = JSON.parse(rawdata);
 
-	for (const [ country, playlistIDs ] of Object.entries(countriesToPlaylistIDs).splice(3)) {
+	for (const [ country, playlistIDs ] of Object.entries(countriesToPlaylistIDs).splice(110)) {
 		const trackIDsPerPlaylist = await Promise.all(
 			playlistIDs.map((playlistID) => getTrackIDsInPlaylist(playlistID))
 		);
@@ -53,10 +53,10 @@ const main = async () => {
 		// Delete existing country document from database
 		try {
 			CountrySchema.findOneAndDelete({ country: country }, (err) => {
-				console.log(`----------Error deleting ${country} from database----------`);
+				console.log(`----------Saved ${country} to database----------`);
 			});
 		} catch (error) {
-			console.log(`----------Error deleting ${country} document from mongo----------`);
+			console.log(`----------Error finding and deleting ${country} document from mongo----------`);
 		}
 
 		// Create country object from schema and save to db
@@ -69,9 +69,7 @@ const main = async () => {
 			await newCountry.save();
 		} catch (error) {
 			console.log(`Error saving ${country} to database!`);
-			console.log(error);
 		}
-
 		/* TEST CODE
     const newTree = deserializeKDT(tree);
     const s1 = new SongNode(unique100AudioFeatures[0]);
@@ -81,6 +79,8 @@ const main = async () => {
     console.log(s1.id)
     */
 	}
+  console.log("test1")
 };
 
 main();
+console.log("test2")
