@@ -40,47 +40,52 @@ const main = async () => {
 	let countriesToPlaylistIDs = JSON.parse(rawdata);
 
 	for (const [ country, playlistIDs ] of Object.entries(countriesToPlaylistIDs)) {
-		const trackIDsPerPlaylist = await Promise.all(
+		const playlistsTracksIDsRes = await Promise.all(
 			playlistIDs.map((playlistID) => getTrackIDsInPlaylist(playlistID))
 		);
+    let playlistsTracksIDs = playlistsTracksIDsRes.map((res) => {
+      if (res.status != 200) {
+        console.log(`Error code ${res.status} found at location 1`)
+        process.exit();
+      }
+      return res.data;
+    })
+		const unique100Tracks = get100Tracks(playlistsTracksIDs);
 
-		const unique100Tracks = get100Tracks(trackIDsPerPlaylist);
+		const tracksAudioFeaturesRes = await getTracksAudioFeatures(unique100Tracks);
 
-		const unique100AudioFeatures = await getTracksAudioFeatures(unique100Tracks);
+    if (tracksAudioFeaturesRes.status != 200) {
+      console.log(`Error code ${tracksAudioFeaturesRes.status} found at location 2`)
+      process.exit();
+      return;
+    }
 
-		const tree = makeSerializedKDT(unique100AudioFeatures);
+		const tree = makeSerializedKDT(tracksAudioFeaturesRes.data);
 
 		// Delete existing country document from database
-		try {
-			CountrySchema.findOneAndDelete({ country: country }, (error) => {
-        console.log(`----------Saved ${country} to database----------`);
-			});
-		} catch (error) {
-			console.log(`----------Saved ${country} to database----------`);
-		}
+		
+		let countryDocument = await CountrySchema.findOneAndDelete({ country: country })
+    if(!countryDocument) {
+      console.log(`CountrySchema.findOneAndDelete ${country} encountered an error at location 3`);
+      process.exit();
+      return;
+    }
+    console.log(`${country} successfully removed from DB`);
 
 		// Create country object from schema and save to db
-		try {
-			const newCountry = await new CountrySchema({
-				country: country,
-				tree: tree
-			});
-			console.log('Got here!');
-			await newCountry.save();
-		} catch (error) {
-			console.log(`Error saving ${country} to database!`);
-		}
-		/* TEST CODE
-    const newTree = deserializeKDT(tree);
-    const s1 = new SongNode(unique100AudioFeatures[0]);
-    const nearest = kNearest(newTree, 1, s1);
-    console.log(country);
-    console.log(nearest);
-    console.log(s1.id)
-    */
+		const newCountry = await new CountrySchema({
+			country: country,
+			tree: tree
+		});
+		const saveRes = await newCountry.save();
+    if(!saveRes) {
+      console.log(`newCountry.save() ${country} encountered an error at location 4`);
+      process.exit();
+      return;
+    }
+    console.log(`${country} successfully added to DB`);
 	}
-  console.log("test1")
+  mongoose.connection.close();
 };
 
 main();
-console.log("test2")

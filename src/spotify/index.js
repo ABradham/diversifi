@@ -53,20 +53,20 @@ const refreshHeader = async () => {
 	}
 };
 
-const tryDelay = async () => {
-  while (delayUntil != null) {
-    const delay = delayUntil - Date.now()
-    if (delay > 0) {
-			await setTimeout(() => {}, delay);
-      break;
-    } else {
-      break;
+/**
+ * function that handles rate limit behavior
+ * @return {string} auth token
+ */
+const onRateLimit = async (response, callback, retries) => {
+  let delay = process.env.DEFAULT_DELAY;
+  if (retries >= process.env.MAX_RETRIES) {
+    console.log("retries exceeded");
+    return {
+      status: !response.status ? 500 : response.status,
+      data: null
     }
   }
-}
 
-const onRateLimit = async (response, callback) => {
-  let delay = 5000;
   if (!response) {
     console.log(`errored with no response code! waiting ${delay} ms and trying again`);
   }
@@ -77,12 +77,13 @@ const onRateLimit = async (response, callback) => {
   else {
     console.log(`error code ${response.status}! waiting ${delay} ms and trying again`);
   }
-  delayUntil = Date.now() + delay;
 
-  await setTimeout(() => {
-    delayUntil = null;
-  }, delay);
-  return callback();
+  delayUntil = Date.now() + delay;
+  if (delayUntil > Date.now()) {
+    await setTimeout(() => {
+    }, delay);
+  }
+  return await callback();
 }
 
 /**
@@ -90,11 +91,9 @@ const onRateLimit = async (response, callback) => {
  * 
  * @param {string} playlistID a playlist's id
  * @param {number} offset
- * @return {[string]} an array of track ids
+ * @return {Object} data key contains array of track ids, status key contains error code
  */
-const getTrackIDsInPlaylistHelper = async (playlistID, offset) => {
-  await tryDelay();
-
+const getTrackIDsInPlaylistHelper = async (playlistID, offset, retries=0) => {
 	await refreshHeader();
 	const api_url = `https://api.spotify.com/v1/playlists/${playlistID}/tracks?limit=50&offset=${offset}`;
 
@@ -103,11 +102,12 @@ const getTrackIDsInPlaylistHelper = async (playlistID, offset) => {
 			headers: currentHeaders
 		});
 
-		return response.data.items.map((item) => {
-			return item.track.id;
-		});
+		return {
+      status: 200,
+      data: response.data.items.map((item) => item.track.id ),
+    }
 	} catch (error) {
-    return await onRateLimit(error.response, () => { return getTrackIDsInPlaylistHelper(playlistID, offset) });
+    return await onRateLimit(error.response, () => { return getTrackIDsInPlaylistHelper(playlistID, offset, retries+1)}, retries );
 	}
 };
 
@@ -115,24 +115,32 @@ const getTrackIDsInPlaylistHelper = async (playlistID, offset) => {
  * gets an array of track ids present in a given playlist id
  * 
  * @param {string} playlistID a playlist's id
- * @return {[string]} an array of track ids
+ * @return {Object} data key contains an array of track ids, status key contains the error code
  */
 const getTrackIDsInPlaylist = async (playlistID) => {
 	let halves = await Promise.all([
 		getTrackIDsInPlaylistHelper(playlistID, 0),
 		getTrackIDsInPlaylistHelper(playlistID, 50)
 	]);
-	return halves[0].concat(halves[1]);
+  if (halves[0].status != 200 || halves[1].status != 200) {
+    return {
+      status: 500,
+      data: null,
+    }
+  }
+	return {
+    status: 200,
+    data: halves[0].data.concat(halves[1].data)
+  };
 };
 
 /**
  * gets an array of audio features objects for an array of track ids
  * 
  * @param {[string]} trackIds an array of track ids
- * @return {[Object]} an a array of audio feature objects
+ * @return {Object} data key contains an a array of audio feature objects, status key contains error code if applicable
  */
-const getTracksAudioFeatures = async (trackIDs) => {
-  await tryDelay();
+const getTracksAudioFeatures = async (trackIDs, retries=0) => {
 	await refreshHeader();
 	const api_url = `https://api.spotify.com/v1/audio-features?ids=${Array.from(trackIDs).join(',')}`;
 
@@ -140,30 +148,21 @@ const getTracksAudioFeatures = async (trackIDs) => {
 		const response = await axios.get(api_url, {
 			headers: currentHeaders
 		});
-		return response.data['audio_features'];
+		return {
+      status: 200,
+      data: response.data['audio_features'],
+    };
 	} catch (error) {
-    return await onRateLimit(error.response, () => { return getTracksAudioFeatures(trackIDs); });
+    return await onRateLimit(error.response, () => { return getTracksAudioFeatures(trackIDs, retries+1); }, retries );
 	}
 };
 
 /**
- * creates a playlist using the given trackids
+ * creates a public playlist using the given trackids
  * 
- * @param {[string]} trackIds an array of track ids
+ * @param {string[]} trackIds an array of track ids
  * @return {string} a playlistID containing the given trackIDs
  */
-const makePlaylist = async (trackIDs) => {
-	await refreshHeader();
-	const api_url = `https://api.spotify.com/v1/audio-features?ids=${Array.from(trackIDs).join(',')}`;
 
-	try {
-		const response = await axios.get(api_url, {
-			headers: currentHeaders
-		});
-		return response.data['audio_features'];
-	} catch (error) {
-		console.log(error);
-	}
-};
 
 export { getTrackIDsInPlaylist, getTracksAudioFeatures };
